@@ -1,6 +1,6 @@
 # Credits to https://github.com/amrsa1/Android-Emulator-image
 
-FROM openjdk:18-jdk-slim
+FROM openjdk:26-ea-18-jdk-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -84,9 +84,9 @@ RUN apt-get update && apt-get install python3-pip -y
 #====================================
 # Install uv
 #====================================
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ARG PATH="$PATH:/root/.local/bin"
-ENV PATH="$PATH:/root/.local/bin"
+# RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# ARG PATH="$PATH:/root/.local/bin"
+# ENV PATH="$PATH:/root/.local/bin"
 
 #=========================
 # Copying Scripts to root
@@ -100,7 +100,10 @@ RUN chmod a+x docker_setup/start_emu.sh && \
 #====================================
 # Install dependencies
 #====================================
-RUN uv pip install . --system
+RUN python -m venv venv && \
+    source venv/bin/activate && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 #=======================
 # framework entry point
