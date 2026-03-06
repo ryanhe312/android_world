@@ -27,6 +27,23 @@ import numpy as np
 TRIGGER_SAFETY_CLASSIFIER = 'Triggered LLM safety classifier.'
 
 
+def _to_opencv_compatible_image(
+    image: np.ndarray,
+) -> tuple[np.ndarray, bool]:
+  """Returns an image OpenCV can draw on and whether copy-back is needed."""
+  image = np.asarray(image).astype(np.uint8)
+  if (
+      image.flags.c_contiguous
+      and image.flags.writeable
+      and image.flags.owndata
+      and image.dtype.isnative
+  ):
+    return image, False
+  # Force a fresh, owned C-contiguous buffer. Some ndarray views can report as
+  # contiguous while still being rejected by OpenCV's cv::Mat bridge.
+  return np.array(image, copy=True, order='C'), True
+
+
 def _logical_to_physical(
     logical_coordinates: tuple[int, int],
     logical_screen_size: tuple[int, int],
@@ -158,6 +175,8 @@ def add_ui_element_mark(
       for the upper left and lower right corner for the frame.
     orientation: The current screen orientation.
   """
+  original = screenshot
+  screenshot, needs_copy_back = _to_opencv_compatible_image(screenshot)
   if ui_element.bbox_pixels:
     upper_left_logical, lower_right_logical = _ui_element_logical_corner(
         ui_element, orientation
@@ -214,6 +233,8 @@ def add_ui_element_mark(
         (0, 0, 0),
         thickness=int(2 * iso_scale),
     )
+  if needs_copy_back and original.flags.writeable:
+    np.copyto(original, screenshot, casting='unsafe')
 
 
 def add_screenshot_label(screenshot: np.ndarray, label: str):
@@ -223,8 +244,11 @@ def add_screenshot_label(screenshot: np.ndarray, label: str):
     screenshot: The screenshot as a numpy ndarray.
     label: The text label to add, just a single word.
   """
+  original = screenshot
+  screenshot, needs_copy_back = _to_opencv_compatible_image(screenshot)
   height, width, _ = screenshot.shape
   screenshot[height - 30 : height, width - 150 : width, :] = (255, 255, 255)
+  print(screenshot.shape,screenshot.dtype)
   cv2.putText(
       screenshot,
       label,
@@ -234,6 +258,8 @@ def add_screenshot_label(screenshot: np.ndarray, label: str):
       (0, 0, 0),
       thickness=2,
   )
+  if needs_copy_back and original.flags.writeable:
+    np.copyto(original, screenshot, casting='unsafe')
 
 
 def encode_image_for_html(image: np.ndarray) -> str:

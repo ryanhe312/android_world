@@ -1,0 +1,1 @@
+sudo uv run run_docker.py --agent_name=m3a_qwen3vl

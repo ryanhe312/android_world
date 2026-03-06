@@ -34,9 +34,35 @@ import requests
 ERROR_CALLING_LLM = 'Error calling LLM'
 
 
+def _to_pil_compatible_array(image: np.ndarray) -> np.ndarray:
+  """Converts image array to a PIL-compatible dtype/range."""
+  if image.dtype == np.bool_:
+    return image.astype(np.uint8) * 255
+
+  if np.issubdtype(image.dtype, np.floating):
+    # Handle normalized floats in [0, 1].
+    if np.nanmin(image) >= 0.0 and np.nanmax(image) <= 1.0:
+      image = image * 255.0
+    image = np.nan_to_num(image)
+    return np.clip(image, 0, 255).astype(np.uint8)
+
+  if image.dtype != np.uint8:
+    return np.clip(image, 0, 255).astype(np.uint8)
+
+  return image
+
+
+def array_to_pil_image(image: np.ndarray) -> Image.Image:
+  """Converts a numpy array into a PIL Image with safe dtype handling."""
+  image = _to_pil_compatible_array(image)
+  if image.ndim == 3 and image.shape[2] == 1:
+    image = np.squeeze(image, axis=2)
+  return Image.fromarray(image)
+
+
 def array_to_jpeg_bytes(image: np.ndarray) -> bytes:
   """Converts a numpy array into a byte string for a JPEG image."""
-  image = Image.fromarray(image)
+  image = array_to_pil_image(image)
   return image_to_jpeg_bytes(image)
 
 
@@ -162,7 +188,7 @@ class GeminiGcpWrapper(LlmWrapper, MultimodalLlmWrapper):
     while counter > 0:
       try:
         output = self.llm.generate_content(
-            [text_prompt] + [Image.fromarray(image) for image in images],
+          [text_prompt] + [array_to_pil_image(image) for image in images],
             safety_settings=None
             if enable_safety_checks
             else SAFETY_SETTINGS_BLOCK_NONE,
@@ -235,7 +261,7 @@ class GeminiGcpWrapper(LlmWrapper, MultimodalLlmWrapper):
       if isinstance(item, str):
         converted.append(item)
       elif isinstance(item, np.ndarray):
-        converted.append(Image.fromarray(item))
+        converted.append(array_to_pil_image(item))
       elif isinstance(item, Image.Image):
         converted.append(item)
     return converted
@@ -247,6 +273,7 @@ class Gpt4Wrapper(LlmWrapper, MultimodalLlmWrapper):
   Attributes:
     openai_api_key: The class gets the OpenAI api key either explicitly, or
       through env variable in which case just leave this empty.
+    chat_completions_url: OpenAI-compatible endpoint resolved from OPENAI_BASE_URL.
     max_retry: Max number of retries when some error happens.
     temperature: The temperature parameter in LLM to control result stability.
     model: GPT model to use based on if it is multimodal.
@@ -260,15 +287,15 @@ class Gpt4Wrapper(LlmWrapper, MultimodalLlmWrapper):
       max_retry: int = 3,
       temperature: float = 0.0,
   ):
-    if 'OPENAI_API_KEY' not in os.environ:
-      raise RuntimeError('OpenAI API key not set.')
-    self.openai_api_key = os.environ['OPENAI_API_KEY']
+    self.openai_api_key = os.environ.get('OPENAI_API_KEY', '')
     if max_retry <= 0:
       max_retry = 3
       print('Max_retry must be positive. Reset it to 3')
     self.max_retry = min(max_retry, 5)
     self.temperature = temperature
     self.model = model_name
+    self.chat_completions_url = os.environ.get('OPENAI_BASE_URL', "http://localhost:8000/v1") + "/chat/completions"
+    print(f'Using chat completions URL: {self.chat_completions_url}')
 
   @classmethod
   def encode_image(cls, image: np.ndarray) -> str:
@@ -315,7 +342,7 @@ class Gpt4Wrapper(LlmWrapper, MultimodalLlmWrapper):
     while counter > 0:
       try:
         response = requests.post(
-            'https://api.openai.com/v1/chat/completions',
+          self.chat_completions_url,
             headers=headers,
             json=payload,
         )
@@ -323,7 +350,7 @@ class Gpt4Wrapper(LlmWrapper, MultimodalLlmWrapper):
           return (
               response.json()['choices'][0]['message']['content'],
               None,
-              response,
+              response.text,
           )
         print(
             'Error calling OpenAI API with error message: '

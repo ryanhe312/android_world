@@ -15,7 +15,7 @@
 """A Multimodal Autonomous Agent for Android (M3A)."""
 
 import time
-
+import cv2
 from absl import logging
 from android_world.agents import agent_utils
 from android_world.agents import base_agent
@@ -404,6 +404,7 @@ class M3A(base_agent.EnvironmentInteractingAgent):
             physical_frame_boundary,
             orientation,
         )
+    cv2.imwrite('debug_before_screenshot.jpg', before_screenshot)  # Debug line to check screenshot
     step_data['before_screenshot_with_som'] = before_screenshot.copy()
 
     action_prompt = _action_selection_prompt(
@@ -416,6 +417,7 @@ class M3A(base_agent.EnvironmentInteractingAgent):
         self.additional_guidelines,
     )
     step_data['action_prompt'] = action_prompt
+    print('Action selection prompt:', action_prompt.replace('\n', '\\n'))
     action_output, is_safe, raw_response = self.llm.predict_mm(
         action_prompt,
         [
@@ -433,8 +435,10 @@ Action: {{"action_type": "status", "goal_status": "infeasible"}}"""
       raise RuntimeError('Error calling LLM in action selection phase.')
     step_data['action_output'] = action_output
     step_data['action_raw_response'] = raw_response
+    print('LLM raw response:', raw_response, 'LLM parsed action output:', action_output)
 
     reason, action = m3a_utils.parse_reason_action_output(action_output)
+    print('Parsed reason:', reason, 'Parsed action:', action)
 
     # If the output is not in the right format, add it to step summary which
     # will be passed to next step and return.

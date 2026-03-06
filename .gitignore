@@ -30,3 +30,4 @@ uv.lock
 
 # Compiled
 android_world/task_evals/information_retrieval
+*.jpg

@@ -100,6 +100,7 @@ RUN chmod a+x docker_setup/start_emu.sh && \
 #====================================
 # Install dependencies
 #====================================
+RUN pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 RUN python -m venv venv && \
     source venv/bin/activate && \
     pip install --upgrade pip && \

@@ -19,6 +19,7 @@ and manage task execution on AndroidWorld tasks.
 """
 
 import contextlib
+import dataclasses
 import typing
 from typing import Any
 
@@ -100,7 +101,8 @@ async def reset(go_home: bool, app_android_env: AndroidEnv):
 async def get_screenshot(wait_to_stabilize: bool, app_android_env: AndroidEnv):
   """Captures and returns the current screenshot of the Android environment."""
   state = app_android_env.get_state(wait_to_stabilize=wait_to_stabilize)
-  return {"pixels": state.pixels.tolist()}
+  ui_elements = [dataclasses.asdict(element) for element in state.ui_elements]
+  return {"pixels": state.pixels.tolist(), "ui_elements": ui_elements}
 
 
 @app.post("/execute_action")
@@ -235,4 +237,4 @@ app.include_router(suite_router)
 app.include_router(task_router)
 
 if __name__ == "__main__":
-  uvicorn.run(app, host="0.0.0.0", port=5000)
+  uvicorn.run(app, host="0.0.0.0", port=5432)
