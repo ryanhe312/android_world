@@ -2,7 +2,7 @@
 # only. The non-docker implementation uses a requirements.txt file.
 
 [build-system]
-requires = ["setuptools>=61.0", "grpcio-tools==1.71.0"]
+requires = ["setuptools<82.0.0", "grpcio-tools==1.71.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,7 +10,7 @@ name = "android_world"
 version = "0.1.0"
 description = "Android World Environment Project"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "absl-py==2.1.0",
     "android_env==1.2.3",
@@ -33,6 +33,7 @@ dependencies = [
     "termcolor",
     "fastapi",
     "uvicorn",
+    "pillow"
 ]
 
 [project.optional-dependencies]

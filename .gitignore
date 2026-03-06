@@ -23,3 +23,10 @@ poetry.lock
 
 # PyCharm
 .idea
+
+# VS Code
+runs/
+uv.lock
+
+# Compiled
+android_world/task_evals/information_retrieval
